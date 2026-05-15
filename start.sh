@@ -7,3 +7,4 @@ echo "🚀 Iniciando..."
 nohup python /tmp/droidguard_bot.py > /tmp/droidguard.log 2>&1 &
 echo "✅ Rodando! PID: $!"
 echo "📝 Logs: cat /tmp/droidguard.log"
+echo "💀 Para matar: pkill -f droidguard_bot.py"
